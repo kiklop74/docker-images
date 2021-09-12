@@ -1,0 +1,21 @@
+FROM ubuntu:focal
+LABEL maintainer="Darko Miletic <darko.miletic@moodle.com>"
+LABEL version="1.0"
+LABEL description="Image that hosts Ansible and cron"
+ARG DEBIAN_FRONTEND=noninteractive
+ARG CRONFILE=/root/cronjob
+COPY etc/ansible-uhcp-dev.cfg /etc/ansible/ansible.cfg
+COPY etc/crontab-DEV-docker $CRONFILE
+RUN apt-get -qq update && \
+    apt-get -yq --no-install-recommends install \
+    python3-pip=20.0.2-5ubuntu1.6 cron=3.0pl1-136ubuntu1 && \
+    pip3 --disable-pip-version-check --no-cache-dir --no-color \
+    install ansible==2.8.13 ansible-later==0.5.14 ansible-lint==4.3.7 && \
+    chmod 0644 $CRONFILE && crontab $CRONFILE && \
+    useradd -m -p "$(openssl passwd -1 test1)" ec2-user && \
+    apt-get -yq autoclean && apt-get -yq clean && \
+    rm -rf /tmp/* /var/tmp/* /var/lib/apt/lists/*
+# https://manpages.ubuntu.com/manpages/focal/man8/cron.8.html
+# On Ubuntu cron does not output anything to stdout nor is it possible to make it do so
+# Therefore we redirect actual cronjob output to docker stdout/stderr
+CMD ["/usr/sbin/cron", "-f", "-L", "0"]
